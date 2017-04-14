@@ -1,2 +1,4 @@
 # JS-promises
-Bluebirdjs promisse implementation library
+Bluebirdjs promise implementation library
+
+A simple promise example.

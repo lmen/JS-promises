@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <title>Async Dialogs Example</title>
+    <script src="//cdn.jsdelivr.net/blubird/3.5.0/bluebird.js"></script>
+    <script type="text/javascript">
+        document.addEventListener('DOMContentLoaded', function () {
+            console.log("OLA: %s", "SLB");
+            var time = document.getElementById('time-stamp');
+            clockTick();
+            setInterval(clockTick, 1000);
+            function clockTick() {
+                time.innerHTML = new Date().toLocaleTimeString();
+            }
+
+            function promptPromise(message) {
+                return new Promise(function (resolve, reject) {
+                    var result = window.prompt(message);
+                    if (result != null) {
+                        resolve(result);
+                    } else {
+                        reject(new Error("User cancelled"));
+                    }
+                });
+            }
+
+            var button = document.getElementById("action");
+            var output = document.getElementById("prompt");
+
+            button.addEventListener("click", function () {
+                promptPromise('What is your name?')
+                    .then(function (name) {
+                        output.innerHTML = String(name);
+                    })
+                    .catch(function () {
+                        output.innerHTML = 'canceled';
+                    });
+            });
+        });
+    </script>
+
+</head>
+
+<body>
+    <div>SLB</div>
+    <p>The current time is <span id="time-stamp"></span> </p>
+    <p>Your name is <span id="prompt"></span>.</p>
+    <button id="action">Set Name</button>
+</body>
+
+</html>
