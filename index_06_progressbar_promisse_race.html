@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <title>Async Dialogs Example</title>
+    <script src="//cdn.jsdelivr.net/bluebird/3.5.0/bluebird.js"></script>
+    <script type="text/javascript">
+        document.addEventListener('DOMContentLoaded', function () {
+            var time = document.getElementById('time-stamp');
+            clockTick();
+            setInterval(clockTick, 1000);
+            function clockTick() {
+                time.innerHTML = new Date().toLocaleTimeString();
+            }
+
+            var noop = function () {
+                return this;
+            }
+
+            function UserCanceledError() {
+                this.name = "UserCanceledError";
+                this.message = "Dialog cancelled";
+            }
+            UserCanceledError.prototype = Object.create(Error.prototype);
+
+            function Dialog() {
+                this.setCallbacks(noop(), noop());
+            }
+            Dialog.prototype.setCallbacks = function (okCallback, cancelCallback) {
+                this._okCallback = okCallback;
+                this._cancelCallback = cancelCallback;
+                return this;
+            }
+            Dialog.prototype.waitForUser = function () {
+                var _this = this;
+                return new Promise(function (resolved, rejected) {
+                    _this.setCallbacks(resolved, rejected);
+                });
+            }
+            Dialog.prototype.show = noop;
+            Dialog.prototype.hide = noop;
+            Dialog.prototype.cancel = function () {
+                this._cancelCallback(new UserCanceledError);
+            }
+
+
+            function ProgressDialog() {
+                Dialog.call(this);
+                this.el = document.getElementById("progress-dialog");
+                this.messageEl = this.el.querySelector('.message');
+                this.progressBar = this.el.querySelector('.progress-bar>div');
+                this.cancelBtn = this.el.querySelector('button.cancel');
+                this.attachDomEvents();
+            }
+            ProgressDialog.prototype = Object.create(Dialog.prototype);
+            ProgressDialog.prototype.attachDomEvents = function () {
+                var _this = this;
+                this.cancelBtn.addEventListener('click', function () {
+                    _this.cancel();
+                })
+            }
+            ProgressDialog.prototype.show = function (message) {
+                this.messageEl.innerHTML = String(message);
+                this.el.className = "";
+                return this;
+            }
+
+            ProgressDialog.prototype.hide = function () {
+                this.el.className = 'hidden';
+                return this
+            }
+
+            ProgressDialog.prototype.setProgress = function (percent) {
+                this.progressBar.style.width = percent + "%";
+            }
+
+            function simulateAFileUpload(progressCallBack) {
+                var step = 10;
+                return new Promise(function (resolve, reject) {
+                    var progress = 0 - step;
+                    function nextTick() {
+                        if (progress >= 100) {
+                            resolve('done');
+                        } else {
+                            progress += step;
+                            progressCallBack(progress);
+                            setTimeout(nextTick, 500);
+                        }
+                    }
+
+                    nextTick();
+                });
+            }
+
+            var button = document.getElementById("action");
+            var output = document.getElementById("prompt");
+            var progressDialog = new ProgressDialog();
+
+            button.addEventListener("click", function () {
+
+                var pendingProgress = true;
+                var waitForFileUpload = simulateAFileUpload(function (progress) {
+                    if (pendingProgress) {
+                        progressDialog.setProgress(progress);
+                    }
+                });
+
+                button.disabled = true;
+
+                progressDialog.show('Simulating a file upload');
+
+                Promise.race([waitForFileUpload, progressDialog.waitForUser()])
+                    .then(function (name) {
+                        output.innerHTML = 'Progress Completed.'
+                    })
+                    .catch(UserCanceledError, function () {
+                        output.innerHTML = 'Progress canceled by user';
+                        console.log('User cancelation: ');
+
+                    })
+                    .catch(function (e) {
+                        console.log("Something bad happened!", e);
+                    })
+                    .finally(function () {
+                        pendingProgress = false;
+                        button.disabled = false;
+                        progressDialog.hide();
+                    });
+
+            });
+        });
+    </script>
+
+</head>
+<style>
+    .hidden {
+        display: none;
+    }
+    
+    #progress-dialog {
+        width: 200px;
+        margin: auto;
+        border: thin solid black;
+        padding: 10px;
+        background: lightcyan;
+    }
+    
+    #progress-dialog .progress-bar {
+        border: 1px solid black;
+        margin: 10px auto;
+        padding: 0;
+        height: 20px;
+    }
+    
+    #progress-dialog .progress-bar>div {
+        background-color: blue;
+        margin: 0;
+        padding: 0;
+        border: none;
+        height: 20px;
+    }
+</style>
+
+
+<div id="progress-dialog" class="hidden">
+    <div class="message"></div>
+    <div class="progress-bar">
+        <div></div>
+    </div>
+    <div>
+        <button class="cancel">Cancel</button>
+    </div>
+</div>
+
+<body>
+    <div>SLB</div>
+    <p>The current time is <span id="time-stamp"></span> </p>
+    <p>Your name is <span id="prompt"></span>.</p>
+    <button id="action">Set Name</button>
+</body>
+
+</html>

@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <title>Async Dialogs Example</title>
+    <script src="//cdn.jsdelivr.net/bluebird/3.5.0/bluebird.js"></script>
+    <script type="text/javascript">
+        document.addEventListener('DOMContentLoaded', function () {
+            var time = document.getElementById('time-stamp');
+            clockTick();
+            setInterval(clockTick, 1000);
+            function clockTick() {
+                time.innerHTML = new Date().toLocaleTimeString();
+            }
+
+            var noop = function () {
+                return this;
+            }
+
+            function UserCanceledError() {
+                this.name = "UserCanceledError";
+                this.message = "Dialog cancelled";
+            }
+            UserCanceledError.prototype = Object.create(Error.prototype);
+
+            function Dialog() {
+                this.setCallbacks(noop(), noop());
+            }
+            Dialog.prototype.setCallbacks = function (okCallback, cancelCallback) {
+                this._okCallback = okCallback;
+                this._cancelCallback = cancelCallback;
+                return this;
+            }
+            Dialog.prototype.waitForUser = function () {
+                var _this = this;
+                return new Promise(function (resolved, rejected) {
+                    _this.setCallbacks(resolved, rejected);
+                });
+            }
+            Dialog.prototype.show = noop;
+            Dialog.prototype.hide = noop;
+            Dialog.prototype.cancel = function () {
+                this._cancelCallback(new UserCanceledError);
+            }
+
+
+            function PromptDialog() {
+                Dialog.call(this);
+                this.el = document.getElementById("dialog");
+                this.inputEl = this.el.querySelector('input');
+                this.messageEl = this.el.querySelector('.message');
+                this.okBtn = this.el.querySelector('button.ok');
+                this.cancelBtn = this.el.querySelector('button.cancel');
+                this.attachDomEvents();
+            }
+
+            PromptDialog.prototype = Object.create(Dialog.prototype);
+            PromptDialog.prototype.attachDomEvents = function () {
+                var _this = this;
+                this.okBtn.addEventListener('click', function () {
+                    _this._okCallback(_this.inputEl.value);
+                });
+                this.cancelBtn.addEventListener('click', function () {
+                    _this.cancel();
+                });
+            }
+            PromptDialog.prototype.show = function (message) {
+                this.messageEl.innerHTML = message;
+                this.el.className = '';
+                return this;
+            }
+
+            PromptDialog.prototype.hide = function () {
+                this.el.className = 'hidden';
+                return this;
+            }
+
+            var button = document.getElementById("action");
+            var output = document.getElementById("prompt");
+
+            button.addEventListener("click", function () {
+
+                var prompt = new PromptDialog();
+
+                prompt
+                    .show('What is your namew')
+                    .waitForUser()
+                    .then(function (name) {
+                        output.innerHTML = String(name);
+                    })
+                    .catch(UserCanceledError, function () {
+                        output.innerHTML = 'canceled';
+                    })
+                    .catch(function (e) {
+                        console.log("Something bad happened!", e);
+                    })
+                    .finally(function () {
+                        prompt.hide();
+                    });
+
+            });
+        });
+    </script>
+
+</head>
+<style>
+    #dialog {
+        width: 200px;
+        margin: auto;
+        padding: 10px;
+        border: thin solid black;
+        background: lightgreen;
+    }
+    
+    .hidden {
+        display: none;
+    }
+</style>
+<div id="dialog" class="hidden">
+    <div class="message">foobar</div>
+    <input type="text">
+    <div>
+        <button class="ok">Ok</button>
+        <button class="cancel">Cancel</button>
+    </div>
+</div>
+
+<body>
+    <div>SLB</div>
+    <p>The current time is <span id="time-stamp"></span> </p>
+    <p>Your name is <span id="prompt"></span>.</p>
+    <button id="action">Set Name</button>
+</body>
+
+</html>

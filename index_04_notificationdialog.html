@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <title>Async Dialogs Example</title>
+    <script src="//cdn.jsdelivr.net/bluebird/3.5.0/bluebird.js"></script>
+    <script type="text/javascript">
+        document.addEventListener('DOMContentLoaded', function () {
+            var time = document.getElementById('time-stamp');
+            clockTick();
+            setInterval(clockTick, 1000);
+            function clockTick() {
+                time.innerHTML = new Date().toLocaleTimeString();
+            }
+
+            var noop = function () {
+                return this;
+            }
+
+            function Dialog() {
+                this.setCallbacks(noop(), noop());
+            }
+            Dialog.prototype.setCallbacks = function (okCallback, cancelCallback) {
+                this._okCallback = okCallback;
+                this._cancelCallback = cancelCallback;
+                return this;
+            }
+            Dialog.prototype.waitForUser = function () {
+                var _this = this;
+                return new Promise(function (resolved, rejected) {
+                    _this.setCallbacks(resolved, rejected);
+                });
+            }
+            Dialog.prototype.show = noop;
+            Dialog.prototype.hide = noop;
+
+            // _______________
+            function NotifyDialog() {
+                Dialog.call(this);
+                var _this = this;
+                this.el = document.getElementById("notify-dialog");
+                this.messageEl = this.el.querySelector(".message");
+                this.okBtn = this.el.querySelector("button.ok");
+                this.okBtn.addEventListener('click', function () {
+                    _this._okCallback();
+                })
+            }
+            NotifyDialog.prototype = Object.create(Dialog.prototype);
+            NotifyDialog.prototype.show = function (message) {
+                this.messageEl.innerHTML = String(message);
+                this.el.className = '';
+                return this;
+            }
+            NotifyDialog.prototype.hide = function () {
+                this.el.className = 'hidden';
+                return this;
+            }
+
+            var button = document.getElementById("action");
+            var output = document.getElementById("prompt");
+
+            button.addEventListener("click", function () {
+
+                var notify = new NotifyDialog();
+
+                notify
+                    .show('What is your namew')
+                    .waitForUser()
+                    .then(function (name) {
+                        output.innerHTML = 'ok';
+                    })
+                    .catch(function () {
+                        output.innerHTML = 'canceled';
+                    })
+                    .finally(function () {
+                        notify.hide();
+                    });
+
+            });
+        });
+    </script>
+
+</head>
+<style>
+    #notify-dialog {
+        width: 200px;
+        margin: auto;
+        padding: 10px;
+        border: thin solid black;
+        background: lemonchiffon;
+    }
+    
+    .hidden {
+        display: none;
+    }
+</style>
+<div id="notify-dialog" class="hidden">
+    <div class="message">foobar</div>
+    <div>
+        <button class="ok">Ok</button>
+    </div>
+</div>
+
+
+
+<body>
+    <div>SLB - BENFICA</div>
+    <p>The current time is <span id="time-stamp"></span> </p>
+    <p>Your name is <span id="prompt"></span>.</p>
+    <button id="action">Set Name</button>
+</body>
+
+</html>
